@@ -1,0 +1,48 @@
+#!/bin/bash
+
+set -o errexit
+
+if [ -z $1 ]
+then
+    echo "First argument must be name of main tex file, second argument is a number of percent which is the resulting image quality or empty for 100"
+    exit 1
+fi
+
+rm -rf ms ms.tar.gz
+rm *.fls
+pdflatex -recorder $1
+tar czf ms.tar.gz $(cat *.fls | grep "\\.pdf\|\\.png" | grep "INPUT \." | uniq | cut -f2- -d' ') $(cat *.fls | grep "\.tex" | grep "INPUT [^\/]" | uniq | cut -f2- -d' ') *.sty *.bib *.bst
+mkdir ms
+mv ms.tar.gz ms/
+cd ms
+tar xzf ms.tar.gz
+#for i in $(find . -name "*.png"); do echo $i ; convert $i -resize 35% $i ; done
+for i in $(find . -name "*.png" | cut -f1-2 -d'.'); do echo $i.png ; convert $i.png -quality ${2:-100}% $i.jpg ; rm $i.png ; done
+
+for e in jpg pdf
+do
+mkdir ext_$e
+imgi=0
+for i in $(find . -name "*.$e" | cut -f1-2 -d'.' | cut -f2- -d'/')
+do 
+echo $i.$e
+mv $i.$e ext_$e/$imgi.$e
+sed -i '' "s|{$i}|{ext_$e/$imgi}|g" *.tex
+imgi=$(($imgi+1))
+done
+done
+
+latexpand $1 -o ms.tex.tmp
+
+rm *.tex
+rm ms.tar.gz
+mv ms.tex.tmp ms.tex
+pdflatex ms
+bibtex ms
+pdflatex ms
+pdflatex ms
+pdflatex ms
+tar czf ms.tar.gz *.tex *.bib *.sty *.bst ext_* *.bbl
+mv ms.tar.gz ../
+cd ..
+rm -rf ms

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ -z $1 ]
+then
+    echo "First argument must be name of main tex file"
+    exit 1
+fi
+
+yes x | latexmk -pvc -pdf -view=none -quiet $1
